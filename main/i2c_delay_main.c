@@ -1,6 +1,6 @@
 // i2c delay main
 
-// The sensor used in this example is an MSA301.
+// The sensor used in this example is an MSA311.
 
 // This code is in the Public Domain (or CC0 licensed, at your option.)
 
@@ -10,8 +10,8 @@
 
 static const char *TAG = "i2c-delay";
 
-#define I2C_MASTER_SCL_IO           CONFIG_I2C_MASTER_SCL      /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_IO           CONFIG_I2C_MASTER_SDA      /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_SCL_IO           34      // Adafruit Metro ESP32-S2 SCL pin
+#define I2C_MASTER_SDA_IO           33      // Adafruit Metro ESP32-S2 SDA pin
 
 #define I2C_MASTER_NUM              0                          /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
 
@@ -22,22 +22,16 @@ static const char *TAG = "i2c-delay";
 #define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000
 
-#define SENSOR_ADDR                 0x26        /*!< Slave address of the MPU9250 sensor */
+#define SENSOR_ADDR                 0x62   // I2C address of the MSA311 sensor
 
 
-#define REGISTER_TO_WRITE           0x0F        /* MSA301 resolution register */
+#define REGISTER_TO_WRITE           0x0F   // MSA311 resolution register. This is just some random place to write.
 
-// static esp_err_t register_read(uint8_t reg_addr, uint8_t *data, size_t len)
-// {
-//     return i2c_master_write_read_device(I2C_MASTER_NUM, SENSOR_ADDR, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
-// }
-
-static esp_err_t register_write_byte(uint8_t reg_addr, uint8_t data)
+static esp_err_t i2c_write(uint8_t *data, size_t len)
 {
     esp_err_t ret;
-    uint8_t write_buf[2] = {reg_addr, data};
 
-    ret = i2c_master_write_to_device(I2C_MASTER_NUM, SENSOR_ADDR, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
+    ret = i2c_master_write_to_device(I2C_MASTER_NUM, SENSOR_ADDR, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
 
     return ret;
 }
@@ -50,8 +44,8 @@ static esp_err_t i2c_master_init(void)
         .mode = I2C_MODE_MASTER,
         .sda_io_num = I2C_MASTER_SDA_IO,
         .scl_io_num = I2C_MASTER_SCL_IO,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .sda_pullup_en = GPIO_PULLUP_DISABLE,
+        .scl_pullup_en = GPIO_PULLUP_DISABLE,
         .master.clk_speed = I2C_MASTER_FREQ_HZ,
     };
 
@@ -66,13 +60,13 @@ void app_main(void)
     ESP_ERROR_CHECK(i2c_master_init());
     ESP_LOGI(TAG, "I2C initialized successfully");
 
-    // uint8_t data[2];
-    // /* Read the MPU9250 WHO_AM_I register, on power up the register should have the value 0x71 */
-    // ESP_ERROR_CHECK(mpu9250_register_read(MPU9250_WHO_AM_I_REG_ADDR, data, 1));
-    // ESP_LOGI(TAG, "WHO_AM_I = %X", data[0]);
 
     while (1) {
-        ESP_ERROR_CHECK(register_write_byte(REGISTER_TO_WRITE, 0));
+        uint8_t write_buf[4] = {REGISTER_TO_WRITE, 0, 0, 0};
+        esp_err_t ret = i2c_write(write_buf, sizeof(write_buf));
+        if (ret) {
+            ESP_LOGE(TAG, "i2c_write() status: %s", esp_err_to_name(ret));
+        }
     }
 
 
